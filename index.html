@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avaliações</title>
+    <link rel="shortcut icon" href="favicon-32x32.png" type="image/x-icon">
+    <style>
+        body{
+            background: radial-gradient(blue, rgb(0, 0, 103));
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-attachment: fixed;
+        }
+        input, textarea{
+            background-color: rgb(104, 104, 104);
+            border: 0;
+            cursor: text;
+            color: black;
+        }
+        button{
+            background-color: cadetblue;
+            border: 0;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        button:hover{
+            background-color: rgb(60, 102, 103);
+            transform: scale(1.2);
+        }
+        ::placeholder{
+            color: black;
+        }
+        .perfil-img {
+            border-radius: 50%;
+            width: 50px; /* Tamanho da imagem */
+            height: 50px; /* Tamanho da imagem */
+            object-fit: cover; /* Manter a proporção da imagem */
+            margin-right: 10px; /* Espaço entre a imagem e o texto */
+        }
+
+        /* Estilo para o contêiner do nome e comentário */
+        .comentario-container {
+            display: flex;
+            align-items: flex-start; /* Alinhar os itens ao início do eixo transversal */
+        }
+    </style>
+</head>
+<body>
+    <h1>Avaliações</h1>
+    <!-- Formulário para adicionar avaliações -->
+    <form id="formulario">
+        <input type="text" id="nome" placeholder="Seu nome" required>
+        <textarea id="comentario" placeholder="Deixe seu comentário" required></textarea>
+        <button type="submit">Enviar Avaliação</button>
+    </form>
+
+    <!-- Seção para exibir as avaliações -->
+    <section id="avaliacoes">
+        <h2>Avaliações dos Usuários</h2>
+        <div id="lista-avaliacoes"></div>
+    </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const formulario = document.getElementById('formulario');
+            const listaAvaliacoes = document.getElementById('lista-avaliacoes');
+
+            // Recuperar avaliações do armazenamento local ao carregar a página
+            const avaliacoesSalvas = JSON.parse(localStorage.getItem('avaliacoes')) || [];
+
+            // Função para adicionar uma nova avaliação na página
+            function adicionarAvaliacao(avaliacao) {
+                const divAvaliacao = document.createElement('div');
+                
+                // Contêiner para imagem, nome e comentário
+                const divComentario = document.createElement('div');
+                divComentario.classList.add('comentario-container'); // Aplicar a classe flexbox
+
+                // Imagem de perfil
+                const imgPerfil = document.createElement('img');
+                imgPerfil.src = 'perfil.jpg'; // Nome da sua imagem de perfil
+                imgPerfil.alt = 'Imagem de perfil';
+                imgPerfil.classList.add('perfil-img'); // Aplicar a classe para borda redonda
+                divComentario.appendChild(imgPerfil);
+
+                // Nome e comentário
+                const divTexto = document.createElement('div');
+                divTexto.innerHTML = `<strong>${avaliacao.nome}</strong><br>${avaliacao.comentario}`;
+                divComentario.appendChild(divTexto);
+
+                divAvaliacao.appendChild(divComentario);
+
+                // Botão para apagar o comentário
+                const btnApagar = document.createElement('button');
+                btnApagar.textContent = 'Apagar';
+                btnApagar.addEventListener('click', () => {
+                    // Remover o comentário do armazenamento local
+                    const index = avaliacoesSalvas.indexOf(avaliacao);
+                    if (index !== -1) {
+                        avaliacoesSalvas.splice(index, 1);
+                        localStorage.setItem('avaliacoes', JSON.stringify(avaliacoesSalvas));
+                        // Remover a div do comentário da página
+                        divAvaliacao.remove();
+                    }
+                });
+
+                divAvaliacao.appendChild(btnApagar);
+                listaAvaliacoes.appendChild(divAvaliacao);
+
+                // Se for uma nova avaliação, enviar para o webhook no Discord
+                if (avaliacao.nova) {
+                    enviarParaWebhook(avaliacao);
+                }
+            }
+
+            // Exibir as avaliações recuperadas ao carregar a página
+            avaliacoesSalvas.forEach(avaliacao => {
+                avaliacao.nova = false; // Marcar as avaliações como não novas ao carregar
+                adicionarAvaliacao(avaliacao);
+            });
+
+            // Evento de envio do formulário
+            formulario.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const nome = document.getElementById('nome').value;
+                const comentario = document.getElementById('comentario').value;
+
+                const novaAvaliacaoObj = { nome, comentario, nova: true }; // Marcar como nova avaliação
+                avaliacoesSalvas.push(novaAvaliacaoObj);
+                localStorage.setItem('avaliacoes', JSON.stringify(avaliacoesSalvas));
+
+                adicionarAvaliacao(novaAvaliacaoObj);
+
+                // Limpar campos do formulário após enviar
+                document.getElementById('nome').value = '';
+                document.getElementById('comentario').value = '';
+            });
+
+            // Função para enviar a avaliação para o webhook no Discord
+            function enviarParaWebhook(avaliacao) {
+                const webhookURL = 'https://discordapp.com/api/webhooks/1244296058264227922/F6udALa-RcEbetQLyQPlCnUoEM2-yjv6GEywSiEvNCpZCoNp7XQwHk_P1l4b7HzN0lXZ';
+                fetch(webhookURL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: `**${avaliacao.nome}** enviou uma nova avaliação:\n${avaliacao.comentario}`
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Ocorreu um erro ao enviar a mensagem para o webhook.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
